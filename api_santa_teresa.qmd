@@ -1,0 +1,428 @@
+---
+title: "api_santa_teresa"
+editor: visual
+---
+
+```{r pacotes}
+# Loading packages
+library(httr)
+library(jsonlite)
+library(purrr)
+library(tidyverse)
+library(DT)
+```
+
+```{r pagamentos}
+
+
+
+# https://www2.santateresa.es.gov.br/transparencia/api/webservice#api_10
+
+
+
+endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/pagamentos"
+
+call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2007&data_fim=31/01/2007")
+
+
+
+pagamentos_api <- GET(url = call)
+
+# Getting status of HTTP Call
+status_code(pagamentos_api)
+str(content(pagamentos_api))
+
+
+get_pagamentos_text <- content(pagamentos_api,
+                          "text", encoding = "UTF-8")
+
+
+# Parsing data in JSON
+pagamentos_api_json <- fromJSON(get_pagamentos_text,
+                           flatten = TRUE)
+
+# pagamentos <- as.data.frame(pagamentos_api_json$registros)
+url_api <- c()
+
+for (x in (1:as.integer(pagamentos_api_json$pagina_total))){
+
+    
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=01/01/2007&data_fim=31/01/2007")
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+pagamentos <- relatorios(url_api)
+
+
+# write.csv(ddd, "pagamentos.csv")
+
+
+
+```
+
+![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAaCAYAAADFTB7LAAAAa0lEQVR42u3OywnAIBBAwcXSUoCW5D11xDoNCBGNv0MOecJOBSOi1OZMsJ4dvFxEJ1OQnMxBarIKEpNNkJbsBknJYZCSnAYJyVVQziNig7/nZkFEbhTE5HpBVO4dxOXKIDL3BLG5BJ1T6rsbMfep2CaMN00AAAAASUVORK5CYII= "Run Current Chunk")
+
+```{r receitas}
+endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/receitas"
+
+call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2007&data_fim=31/12/2022")
+
+
+
+receitas_api <- GET(url = call)
+
+# Getting status of HTTP Call
+status_code(receitas_api)
+str(content(receitas_api))
+
+
+get_receitas_text <- content(receitas_api,
+                          "text", encoding = "UTF-8")
+
+
+# Parsing data in JSON
+receitas_api_json <- fromJSON(get_receitas_text,
+                           flatten = TRUE)
+
+# receitas <- as.data.frame(receitas_api_json$registros)
+url_api <- c()
+
+for (x in (1:as.integer(receitas_api_json$pagina_total))){
+
+    
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=01/01/2007&data_fim=31/12/2022")
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+receitas <- relatorios(url_api)
+
+write.csv(receitas,"receitas.csv")
+```
+
+```{r licitacoes}
+
+
+call_licitacao <- "https://www2.santateresa.es.gov.br/transparencia/api/licitacoes"
+
+
+
+# pagamentos <- as.data.frame(pagamentos_api_json$registros)
+url_api <- c()
+
+for (x in c(2016:2022)){
+
+    
+  paginas_api <-   paste0(call_licitacao, "?ano=",x)
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+licitacao <- relatorios(url_api)
+
+write_csv(licitacao,"licitacoes.csv")
+
+```
+
+```{r contratos}
+
+call_contratos <- "https://www2.santateresa.es.gov.br/transparencia/api/contratos"
+
+
+
+# pagamentos <- as.data.frame(pagamentos_api_json$registros)
+url_api <- c()
+
+for (x in c(2007:2022)){
+
+    
+  paginas_api <-   paste0(call_contratos, "?ano=",x)
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+contratos <- relatorios(url_api)
+
+write_csv(contratos,"contratos.csv")
+```
+
+```{r atas}
+call_atas <- "https://www2.santateresa.es.gov.br/transparencia/api/atas"
+
+
+
+# pagamentos <- as.data.frame(pagamentos_api_json$registros)
+url_api <- c()
+
+for (x in c(2007:2022)){
+
+    
+  paginas_api <-   paste0(call_atas, "?ano=",x)
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+atas <- relatorios("https://www2.santateresa.es.gov.br/transparencia/api/atas?ano=2022")
+
+write_csv(atas,"atas.csv")
+```
+
+```{r diarias}
+
+endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/diarias_passagens"
+
+call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2007&data_fim=31/12/2022")
+
+
+
+diarias_api <- GET(url = call)
+
+# Getting status of HTTP Call
+status_code(diarias_api)
+str(content(diarias_api))
+
+
+get_diarias_text <- content(diarias_api,
+                          "text", encoding = "UTF-8")
+
+
+# Parsing data in JSON
+diarias_api_json <- fromJSON(get_diarias_text,
+                           flatten = TRUE)
+
+# diarias <- as.data.frame(diarias_api_json$registros)
+url_api <- c()
+
+for (x in (1:as.integer(diarias_api_json$pagina_total))){
+
+    
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=01/01/2007&data_fim=31/12/2022")
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+diarias <- relatorios(url_api)
+
+write.csv(diarias, "diarias.csv")
+
+ 
+```
+
+```{r servidores}
+endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/servidores"
+
+call <- paste0(endpoint, "?page=1&page_size=100&competencia_mes=8&competencia_ano=2022")
+
+
+
+servidores_api <- GET(url = call)
+
+# Getting status of HTTP Call
+status_code(servidores_api)
+str(content(servidores_api))
+
+
+get_servidores_text <- content(servidores_api,
+                          "text", encoding = "UTF-8")
+
+
+# Parsing data in JSON
+servidores_api_json <- fromJSON(get_servidores_text,
+                           flatten = TRUE)
+
+# servidores <- as.data.frame(servidores_api_json$registros)
+url_api <- c()
+
+for (x in (1:as.integer(servidores_api_json$pagina_total))){
+
+    
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&competencia_mes=9&competencia_ano=2022")
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+servidores_2022_09 <- relatorios(url_api)
+
+
+
+#put all data frames into list
+# df_list <- list(servidores_2022_01,servidores_2022_02,servidores_2022_03,servidores_2022_04,servidores_2022_05,servidores_2022_06,servidores_2022_07,servidores_2022_08)
+
+#merge all data frames in list
+servidores <- df_list %>% reduce(full_join) 
+
+
+# write.csv(servidores, "servidores.csv")
+
+```
+
+```{r orcamento_receita}
+endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/orcamento_receita"
+
+call <- paste0(endpoint, "?page=1&page_size=100&ano=2007")
+
+
+
+orcamento_receita_api <- GET(url = call)
+
+# Getting status of HTTP Call
+status_code(orcamento_receita_api)
+str(content(orcamento_receita_api))
+
+
+get_orcamento_receita_text <- content(orcamento_receita_api,
+                          "text", encoding = "UTF-8")
+
+
+# Parsing data in JSON
+orcamento_receita_api_json <- fromJSON(get_orcamento_receita_text,
+                           flatten = TRUE)
+
+# orcamento_receita <- as.data.frame(orcamento_receita_api_json$registros)
+url_api <- c()
+
+for (x in (1:as.integer(orcamento_receita_api_json$pagina_total))){
+
+    
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&ano=2007")
+  url_api <-  c(url_api,paginas_api)
+}
+
+
+json2df = function(a){ 
+  # "a" é a URL
+  f_api <-   GET(a)
+  f_txt <- content(f_api, as="text", encoding="UTF-8")
+  f_json <- fromJSON(f_txt, flatten = TRUE)
+ 
+  f_df <-as.data.frame(f_json$registros) 
+}
+
+bind_json2df = function(a){ map(a,json2df)}
+
+relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
+
+
+orcamento_receita_2007 <- relatorios(url_api)
+
+
+#put all data frames into list
+df_list <- list(orcamento_receita,orcamento_receita_2007,orcamento_receita_2008,orcamento_receita_2009,orcamento_receita_2010,orcamento_receita_2011,orcamento_receita_2012,orcamento_receita_2013,orcamento_receita_2014,orcamento_receita_2015,orcamento_receita_2016,orcamento_receita_2017,orcamento_receita_2018,orcamento_receita_2019,orcamento_receita_2020,orcamento_receita_2021)
+
+#merge all data frames in list
+orcamento_receita <- df_list %>% reduce(full_join)
+
+write.csv(orcamento_receita,"orcamento_receita.csv")
+```
+
+```{r}
+servidores <- servidores %>% mutate(total_rendimentos = as.integer(total_rendimentos))
+
+datatable(servidores %>% filter(competencia_mes=="2") %>% group_by(setor) %>% summarise( custo = sum(as.integer( total_rendimentos))))
+```
+
+```{r}
+ datatable(servidores %>% filter(competencia_mes==8, endsWith(cargo,"DT"))%>% count(cargo))
+```

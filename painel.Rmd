@@ -1,0 +1,194 @@
+---
+title: "Santa Teresa"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r}
+knitr::opts_chunk$set( echo=FALSE, warning=FALSE, message=FALSE)
+options(encoding = "latin1")
+```
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(purrr)
+library(flexdashboard)
+library(shiny)
+library(tidyverse)
+library(readxl)
+library(DT)
+library(plotly)
+library(lubridate)
+library(RcppRoll)
+library(scales)
+library(ggrepel)
+library(forcats)
+library(readr)
+library(janitor)
+```
+
+
+
+```{r carregar_arquivos}
+
+servidores <- read_csv("servidores.csv", 
+    col_types = cols(admissao_data = col_date(format = "%d/%m/%Y"))) 
+servidores <- servidores %>% select(!...1)
+
+
+
+pagamentos <- read_csv("pagamentos_clean.csv")
+
+
+
+
+
+grupos <- do.call(cbind, list(pagamentos %>% filter(grupo_cod == "44") %>% group_by(data_ts) %>% summarise(investimento = sum(valor)/1000000),pagamentos %>% filter(grupo_cod == "33") %>% group_by(data_ts) %>% summarise(despesas_correntes = sum(valor)/1000000), pagamentos %>% filter(grupo_cod == "31") %>% group_by(data_ts) %>% summarise(pessoal = sum(valor)/1000000)))
+
+
+
+library(xts)
+
+grupos <- grupos %>% select(1,2,4,6)
+
+grupos <- grupos %>%  mutate(despesas_correntes = round(roll_sum(despesas_correntes,12, fill=NA,align="right"),1),
+                             pessoal = round(roll_sum(pessoal,12, fill=NA, align="right"),1),
+                             investimento = round(roll_sum(investimento,12, fill=NA, align="right"),1)
+                             )
+
+
+grupos_ts <- xts(grupos %>% select(investimento,pessoal,despesas_correntes), grupos$data_ts)
+
+```
+
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Servidores
+
+```{r}
+# https://www.r-bloggers.com/the-notin-operator/
+'%!in%' <- Negate('%in%')
+
+
+
+
+# servidores <- rbind(servidores,servidores_2022_09) 
+
+# servidores <- servidores %>% mutate(competencia_mes =
+#       case_when(competencia_mes %in% c("10","11","12")~ competencia_mes,
+#       TRUE ~ paste0("0",competencia_mes)))
+
+
+ servidores <- servidores %>% mutate(competencia_mes = paste0("0",competencia_mes))
+
+servidores <- servidores %>% mutate(data =parse_date(  paste0(competencia_ano,"-",competencia_mes,"-01")))
+
+servidores <- servidores %>% mutate(mes_ano =strftime(data  ,'%b-%y') )%>%
+  mutate(mes_ano = fct_reorder(mes_ano, data))
+
+
+datatable( servidores %>%  group_by(regime, mes_ano) %>% count(regime) %>% pivot_wider(names_from = mes_ano, values_from = n)) 
+
+```
+
+
+
+```{r}
+tabela_reais = function (df,coluna = NULL) {
+      datatable((df)%>%
+  # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
+  adorn_totals("row","col") ,
+      filter = 'top', 
+      rownames = FALSE,
+      extensions = 'Buttons',
+      options = list( 
+                  # order = list (df[(length(df))], 'desc'),
+                  dom = "Blfrtip",
+                  buttons = 
+                    list("copy", list(
+                      extend = "collection",
+                      buttons = c("csv", "excel", "pdf"),
+                      text = "Download" ) ),
+                  lengthMenu = list( c(-1, 5, 10,20),
+                                     c( "tudo",5, 10, 20)),
+                  pageLength = -1 )
+      )%>%
+  formatRound(
+  # formatar apenas as colunas numericas.
+  # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
+    # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
+    # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
+    (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
+  digits = 2,
+  interval = 3,
+  mark = ".",
+  dec.mark = ","
+) 
+}
+```
+
+
+### Despesa por função
+
+```{r}
+
+subfuncao <- pagamentos %>% filter(grupo_cod == "33") %>% group_by(ano, subfuncao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
+  adorn_totals(where = c("row", "col")) %>% arrange(desc(Total))
+
+datatable(pagamentos  %>% group_by(ano, funcao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
+  adorn_totals(where = c("row", "col")) %>%arrange(desc(Total)))%>% formatCurrency(c(as.character( c(2007:2022)),"Total"),
+  currency = "",
+  interval = 3,
+  mark = ".",
+  digits = 1,
+  dec.mark = ",",
+  before = TRUE,
+  zero.print = NULL,
+  rows = NULL)%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+
+```
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Grupo de despesa
+
+```{r}
+library(dygraphs)
+dygraph(grupos_ts, main = "Despesas (acumulado 12 meses)") %>%
+  dyOptions(stepPlot = TRUE)%>% 
+  dyRangeSelector()%>%
+  dyAxis("y", label = "R$ MI", valueRange = c(0, 60)) %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
+  
+```
+
+### Despesas Correntes
+
+```{r}
+
+subfuncao <- pagamentos %>% filter(grupo_cod == "33", ano >2017) %>% group_by(ano, subfuncao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
+  adorn_totals(where = c("row", "col")) %>% arrange(desc(Total))
+
+datatable(pagamentos %>% filter(grupo_cod == "33", ano >2017) %>% group_by(ano, subfuncao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
+  adorn_totals(where = c("row", "col")) %>%arrange(desc(Total)))%>% formatCurrency(c(as.character( c(2018:2022)),"Total"),
+  currency = "",
+  interval = 3,
+  mark = ".",
+  digits = 1,
+  dec.mark = ",",
+  before = TRUE,
+  zero.print = NULL,
+  rows = NULL)%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+
+```
+
