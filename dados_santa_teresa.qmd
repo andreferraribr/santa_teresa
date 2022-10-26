@@ -158,9 +158,11 @@ receitas <- receitas %>% separate(rubrica,into = c("rubrica_cod", "rubrica_nome"
 
 receitas <- receitas %>% separate(origem,into = c("origem_cod", "origem_nome")," - ")
 
+receitas$origem_nome <- str_to_lower(receitas$origem_nome)
+
 receitas <- receitas %>% mutate(ano = year(data))
 
-datatable(receitas %>% group_by(origem_cod, ano) %>% summarise(valor = sum(valor)) %>% pivot_wider(names_from = ano, values_from = valor))
+datatable(receitas %>% group_by(origem_nome, ano) %>% summarise(valor = sum(valor)) %>% pivot_wider(names_from = ano, values_from = valor))
 
 receita_origem <- receitas %>% group_by(origem_cod, ano) %>% summarise(valor = sum(valor)) %>% pivot_wider(names_from = ano, values_from = valor)
 
@@ -170,7 +172,7 @@ nomes_origem <- unique(nomes_origem %>% select(origem_cod, origem_nome))
 
 receita_origem <- left_join(receita_origem, nomes_origem %>% select(origem_cod, origem_nome)) %>% relocate(origem_nome, .before = origem_cod)
 
-datatable(receita_origem)
+
 ```
 
 ```{r licitacoes}

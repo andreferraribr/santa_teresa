@@ -33,27 +33,44 @@ library(janitor)
 
 
 
-```{r carregar_arquivos}
+```{r df_servidores}
 
 servidores <- read_csv("servidores.csv", 
     col_types = cols(admissao_data = col_date(format = "%d/%m/%Y"))) 
 servidores <- servidores %>% select(!...1)
 
 
+ servidores <- servidores %>% mutate(competencia_mes = paste0("0",competencia_mes))
+
+servidores <- servidores %>% mutate(data =parse_date(  paste0(competencia_ano,"-",competencia_mes,"-01")))
+
+servidores <- servidores %>% mutate(mes_ano =strftime(data  ,'%b-%y') )%>%
+  mutate(mes_ano = fct_reorder(mes_ano, data))
+
+servidores <- servidores %>% mutate(regime = case_when(
+  regime == "ESTAGIARIO" ~ "Estagiario",
+  regime == "ELEITO   CONSELHO TUTELAR" ~ "Eleito",
+  TRUE ~ regime))
+
+
+
+
+
+```
+
+```{r df_pagamentos}
+# pagamentos <- readxl::read_excel("pagamentos_clean.xlsx")
+
 
 pagamentos <- read_csv("pagamentos_clean.csv")
 
-
-
-
-
-grupos <- do.call(cbind, list(pagamentos %>% filter(grupo_cod == "44") %>% group_by(data_ts) %>% summarise(investimento = sum(valor)/1000000),pagamentos %>% filter(grupo_cod == "33") %>% group_by(data_ts) %>% summarise(despesas_correntes = sum(valor)/1000000), pagamentos %>% filter(grupo_cod == "31") %>% group_by(data_ts) %>% summarise(pessoal = sum(valor)/1000000)))
+grupos <- do.call(cbind, list(pagamentos %>% filter(grupo_cod == "44") %>% group_by(data_ts) %>% summarise(investimento = sum(valor)/1000000),pagamentos %>% filter(grupo_cod == "33") %>% group_by(data_ts) %>% summarise(despesas_correntes = sum(valor)/1000000) %>% select(despesas_correntes), pagamentos %>% filter(grupo_cod == "31") %>% group_by(data_ts) %>% summarise(pessoal = sum(valor)/1000000)%>% select(pessoal)))
 
 
 
 library(xts)
 
-grupos <- grupos %>% select(1,2,4,6)
+# grupos <- grupos %>% select(1,2,4,6)
 
 grupos <- grupos %>%  mutate(despesas_correntes = round(roll_sum(despesas_correntes,12, fill=NA,align="right"),1),
                              pessoal = round(roll_sum(pessoal,12, fill=NA, align="right"),1),
@@ -62,9 +79,48 @@ grupos <- grupos %>%  mutate(despesas_correntes = round(roll_sum(despesas_corren
 
 
 grupos_ts <- xts(grupos %>% select(investimento,pessoal,despesas_correntes), grupos$data_ts)
+```
+
+```{r df_receitas}
+receitas_clean <- read_csv("receitas_clean.csv")
+
+
+
 
 ```
 
+
+```{r df_licitacoes}
+
+licitacoes <- read_csv("licitacoes.csv")
+
+licitacoes$valor <- str_remove_all(licitacoes$valor,"R")
+licitacoes$valor <- str_remove_all(licitacoes$valor,"\\$")
+licitacoes$valor <- str_replace(licitacoes$valor,"--", "0,00")
+licitacoes$valor <- str_trim (licitacoes$valor)
+licitacoes$valor <- parse_number(licitacoes$valor, locale = locale(decimal_mark = ","))
+
+licitacoes <- licitacoes %>% mutate(ano = year(data_publicacao))
+
+```
+
+```{r df_atas}
+atas <- read_csv("atas.csv") %>% unique()
+```
+
+```{r df_contratos}
+contratos <- read_csv("contratos.csv")
+
+contratos$valor <- str_remove_all(contratos$valor,"R")
+contratos$valor <- str_remove_all(contratos$valor,"\\$")
+contratos$valor <- str_replace(contratos$valor,"--", "0,00")
+contratos$valor <- str_trim (contratos$valor)
+contratos$valor <- parse_number(contratos$valor, locale = locale(decimal_mark = ","))
+
+```
+
+Visão Geral
+=====================================  
 
 Column {data-width=650}
 -----------------------------------------------------------------------
@@ -85,15 +141,11 @@ Column {data-width=650}
 #       TRUE ~ paste0("0",competencia_mes)))
 
 
- servidores <- servidores %>% mutate(competencia_mes = paste0("0",competencia_mes))
-
-servidores <- servidores %>% mutate(data =parse_date(  paste0(competencia_ano,"-",competencia_mes,"-01")))
-
-servidores <- servidores %>% mutate(mes_ano =strftime(data  ,'%b-%y') )%>%
-  mutate(mes_ano = fct_reorder(mes_ano, data))
 
 
-datatable( servidores %>%  group_by(regime, mes_ano) %>% count(regime) %>% pivot_wider(names_from = mes_ano, values_from = n)) 
+datatable( servidores %>%  group_by(regime, mes_ano) %>% count(regime) %>% pivot_wider(names_from = mes_ano, values_from = n)%>%
+  adorn_totals(where = c("row")) )%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 
 ```
 
@@ -134,14 +186,13 @@ tabela_reais = function (df,coluna = NULL) {
 ```
 
 
-### Despesa por função
+### Despesa por função (R$ milhões)
 
 ```{r}
 
-subfuncao <- pagamentos %>% filter(grupo_cod == "33") %>% group_by(ano, subfuncao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
-  adorn_totals(where = c("row", "col")) %>% arrange(desc(Total))
 
-datatable(pagamentos  %>% group_by(ano, funcao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
+
+datatable(pagamentos %>% filter(funcao_nome !="") %>% group_by(ano, funcao_nome) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
   adorn_totals(where = c("row", "col")) %>%arrange(desc(Total)))%>% formatCurrency(c(as.character( c(2007:2022)),"Total"),
   currency = "",
   interval = 3,
@@ -159,7 +210,7 @@ datatable(pagamentos  %>% group_by(ano, funcao_nome) %>% summarise(valor = sum(v
 Column {data-width=350}
 -----------------------------------------------------------------------
 
-### Grupo de despesa
+### Grupo de despesa (R$ milhões)
 
 ```{r}
 library(dygraphs)
@@ -171,7 +222,7 @@ dygraph(grupos_ts, main = "Despesas (acumulado 12 meses)") %>%
   
 ```
 
-### Despesas Correntes
+### Despesas Correntes (R$ milhões)
 
 ```{r}
 
@@ -183,12 +234,103 @@ datatable(pagamentos %>% filter(grupo_cod == "33", ano >2017) %>% group_by(ano, 
   currency = "",
   interval = 3,
   mark = ".",
-  digits = 1,
+  digits = 2,
   dec.mark = ",",
   before = TRUE,
   zero.print = NULL,
   rows = NULL)%>% 
      formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 
+```
+
+
+Pessoal
+=====================================  
+
+
+
+
+Receitas e Despesas
+=====================================  
+
+### Receitas em R$ milhões
+
+```{r tabela_receitas}
+datatable(receitas_clean %>% filter(ano>2013) %>% group_by(ano, origem_tipo) %>% summarise(valor = sum(valor)/1000000) %>% pivot_wider(names_from = ano, values_from = valor)%>%
+  adorn_totals(where = c("row", "col")) %>%arrange(desc(Total)))%>% formatCurrency(c(as.character( c(2014:2022)),"Total"),
+  currency = "",
+  interval = 3,
+  mark = ".",
+  digits = 2,
+  dec.mark = ",",
+  before = TRUE,
+  zero.print = NULL,
+  rows = NULL)%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+
+
+
+```
+
+
+### plot
+
+```{r}
+
+p <- ggplot(receitas_clean %>% filter(origem_nome!="dedução da receita de transferência"), aes(fill = origem_tipo, y = valor, x = ano))+ geom_bar(position="stack", stat="identity")
+
+ggplotly(p)
+
+
+```
+
+
+Compras
+===================================== 
+
+Column
+-----------------------------------------------------------------------
+### Licitações publicadas nos últimos 60 dias 
+
+```{r tabela_licitacoes}
+datatable(licitacoes %>% filter(data_publicacao >= as.Date(today()-60) ) %>% group_by(objeto) %>% summarise(valor = sum(valor, na.rm = TRUE)) %>% arrange(desc(valor)))%>% formatCurrency("valor",
+  currency = "R$",
+  interval = 3,
+  mark = ".",
+  digits = 0,
+  dec.mark = ",",
+  before = TRUE,
+  zero.print = NULL,
+  rows = NULL)%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+
+```
+
+
+Column
+-----------------------------------------------------------------------
+### Atas de registro de preço
+
+```{r tabela_atas}
+datatable(atas %>% select(objeto, fornecedor))%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Contratos vigentes
+
+```{r}
+datatable(contratos %>% filter(vigencia_data_fim >= as.Date(today()) ) %>% group_by(objeto, fornecedor_nome) %>% summarise(valor = sum(valor, na.rm = TRUE)) %>% arrange(desc(valor)))%>% formatCurrency("valor",
+  currency = "R$",
+  interval = 3,
+  mark = ".",
+  digits = 0,
+  dec.mark = ",",
+  before = TRUE,
+  zero.print = NULL,
+  rows = NULL)%>% 
+     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 ```
 

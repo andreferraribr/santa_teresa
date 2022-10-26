@@ -10,6 +10,7 @@ library(jsonlite)
 library(purrr)
 library(tidyverse)
 library(DT)
+options(encoding = "latin1")
 ```
 
 ```{r pagamentos}
@@ -80,7 +81,7 @@ pagamentos <- relatorios(url_api)
 ```{r receitas}
 endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/receitas"
 
-call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2007&data_fim=31/12/2022")
+call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=24/09/2022&data_fim=31/12/2022")
 
 
 
@@ -105,7 +106,7 @@ url_api <- c()
 for (x in (1:as.integer(receitas_api_json$pagina_total))){
 
     
-  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=01/01/2007&data_fim=31/12/2022")
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=24/09/2022&data_fim=31/12/2022")
   url_api <-  c(url_api,paginas_api)
 }
 
@@ -124,9 +125,24 @@ bind_json2df = function(a){ map(a,json2df)}
 relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
 
 
-receitas <- relatorios(url_api)
+receitas_out <- relatorios(url_api)
+receitas <- read_csv("receitas.csv") %>% select(-"...1")
+receitas <- rbind(receitas,receitas_out)
+receitas <- receitas %>% separate(rubrica,into = c("rubrica_cod", "rubrica_nome")," - ")
 
-write.csv(receitas,"receitas.csv")
+receitas <- receitas %>% separate(origem,into = c("origem_cod", "origem_nome")," - ")
+
+receitas$origem_nome <- str_to_lower(receitas$origem_nome)
+
+receitas <- receitas %>% mutate(ano = year(data))
+
+receitas$valor <- as.numeric(receitas$valor)/100
+
+receitas_clean <- receitas %>% group_by(origem_nome,ano) %>% summarise(valor=sum(valor)) %>% mutate(origem_tipo = if_else(origem_nome == "transferências correntes",origem_nome, "demais receitas" ))
+
+write_csv (receitas_clean,"receitas_clean.csv")
+
+
 ```
 
 ```{r licitacoes}
