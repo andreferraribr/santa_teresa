@@ -2,7 +2,7 @@
 title: "Santa Teresa"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
+    orientation: rows
     vertical_layout: fill
 runtime: shiny
 ---
@@ -16,7 +16,6 @@ options(encoding = "latin1")
 ```{r setup, include=FALSE}
 library(flexdashboard)
 library(purrr)
-library(flexdashboard)
 library(shiny)
 library(tidyverse)
 library(readxl)
@@ -29,6 +28,7 @@ library(ggrepel)
 library(forcats)
 library(readr)
 library(janitor)
+library(shinyWidgets)
 ```
 
 
@@ -40,16 +40,19 @@ servidores <- read_csv("servidores.csv",
 servidores <- servidores %>% select(!...1)
 
 
- servidores <- servidores %>% mutate(competencia_mes = if_else(competencia_mes < 10, paste0("0",as.character( competencia_mes)), as.character( competencia_mes)))
+ # servidores <- servidores %>% mutate(competencia_mes = if_else(competencia_mes < 10, paste0("0",as.character( competencia_mes)), as.character( competencia_mes)))
 
 servidores <- servidores %>% mutate(data =parse_date(  paste0(competencia_ano,"-",competencia_mes,"-01")))
+
+
 
 servidores <- servidores %>% mutate(mes_ano =strftime(data  ,'%b-%y') )%>%
   mutate(mes_ano = fct_reorder(mes_ano, data))
 
 servidores <- servidores %>% mutate(regime = case_when(
   regime == "ESTAGIARIO" ~ "Estagiário",
-  regime == "Estagiario" ~ "Estagiário",
+  startsWith(regime,"Estag") ~ "Estagiário",
+  regime == "Estagi\xe1rio" ~ "Estagiário",
   regime == "ELEITO   CONSELHO TUTELAR" ~ "Eleito",
   TRUE ~ regime))
 
@@ -66,6 +69,7 @@ servidores <- servidores %>% mutate(formacao = case_when(
 ))
 
 
+mes_vigente <- levels(servidores$mes_ano)[as.numeric(max(servidores$competencia_mes))]
 
 ```
 
@@ -143,7 +147,7 @@ Column {data-width=650}
 '%!in%' <- Negate('%in%')
 
 
-
+reais = function(x){prettyNum(round(x,0), big.mark = ".", decimal.mark = ",")}
 
 # servidores <- rbind(servidores,servidores_2022_09) 
 
@@ -155,7 +159,7 @@ Column {data-width=650}
 
 
 datatable( servidores %>%  group_by(regime, mes_ano) %>% count(regime) %>% pivot_wider(names_from = mes_ano, values_from = n)%>%
-  adorn_totals(where = c("row")) )%>% 
+  adorn_totals(where = c("row"))  )%>% 
      formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 
 ```
@@ -259,7 +263,57 @@ Pessoal
 =====================================  
 
 
+Row
+-----------------------------------------------------------------------
+### Total de Rendimentos
 
+```{r}
+
+total_rendimentos <- sum(servidores %>% filter(data == max(data)) %>% select(total_rendimentos))
+
+renderValueBox( valueBox(reais(total_rendimentos), caption = paste0("Total Rendimentos em ", mes_vigente)))
+
+
+```
+
+### Força de Trabalho
+
+```{r}
+
+f_trabalho <- nrow(servidores %>% filter(data == max(data)))
+
+renderValueBox( valueBox(reais(f_trabalho), caption = paste0("Força de Trabalho em ", mes_vigente)))
+
+
+```
+
+### Maior Rendimento
+
+```{r}
+
+max_remuneracao <- max(servidores %>% filter(data == max(data)) %>% select(total_rendimentos))
+
+renderValueBox( valueBox(reais(max_remuneracao), caption = paste0("Maior Rendimento em ",mes_vigente)))
+
+
+```
+
+
+
+
+### Rendimento Médio
+
+```{r}
+
+
+
+renderValueBox( valueBox(reais(total_rendimentos/f_trabalho), caption = paste0("Rendimento Médio em ", mes_vigente)))
+
+
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
 
 ### remuneração por regime
 
@@ -370,4 +424,6 @@ datatable(contratos %>% filter(vigencia_data_fim >= as.Date(today()) ) %>% group
   rows = NULL)%>% 
      formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 ```
+
+
 

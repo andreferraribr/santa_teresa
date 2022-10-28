@@ -23,7 +23,7 @@ options(encoding = "latin1")
 
 endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/pagamentos"
 
-call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2022&data_fim=31/01/2022")
+call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2022&data_fim=31/12/2022")
 
 
 
@@ -393,6 +393,8 @@ servidores <- read.csv("servidores.csv") %>% select(-X)
 
      servidores <- rbind(servidores, servidores_2022_9)
      servidores <- rbind(servidores, servidores_2022_10)
+     
+servidores <- unique(servidores)     
 
  write.csv(servidores, "servidores.csv")
 
