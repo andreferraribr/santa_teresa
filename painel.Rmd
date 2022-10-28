@@ -40,7 +40,7 @@ servidores <- read_csv("servidores.csv",
 servidores <- servidores %>% select(!...1)
 
 
- servidores <- servidores %>% mutate(competencia_mes = paste0("0",competencia_mes))
+ servidores <- servidores %>% mutate(competencia_mes = if_else(competencia_mes < 10, paste0("0",as.character( competencia_mes)), as.character( competencia_mes)))
 
 servidores <- servidores %>% mutate(data =parse_date(  paste0(competencia_ano,"-",competencia_mes,"-01")))
 
@@ -48,11 +48,22 @@ servidores <- servidores %>% mutate(mes_ano =strftime(data  ,'%b-%y') )%>%
   mutate(mes_ano = fct_reorder(mes_ano, data))
 
 servidores <- servidores %>% mutate(regime = case_when(
-  regime == "ESTAGIARIO" ~ "Estagiario",
+  regime == "ESTAGIARIO" ~ "Estagiário",
+  regime == "Estagiario" ~ "Estagiário",
   regime == "ELEITO   CONSELHO TUTELAR" ~ "Eleito",
   TRUE ~ regime))
 
 
+servidores <- servidores %>% mutate(formacao = case_when( 
+ instrucao %in% c("POS GRADUADO","POS GRADUACAO") ~ "pós graduação",
+  instrucao %in% c("CURSO TECNICO","SEGUNDO GRAU (COLEGIAL) COMPLETO.","SUPERIOR INCOMPLETO.") ~ "ensino medio",
+  instrucao == "SUPERIOR COMPLETO" ~ "ensino superior",
+ 
+  
+  TRUE ~ "ensino fundamental"
+  
+  
+))
 
 
 
@@ -250,6 +261,29 @@ Pessoal
 
 
 
+### remuneração por regime
+
+```{r}
+
+p <- ggplot(servidores %>% filter(data == max(data)), aes( y = total_rendimentos, x = regime, color = formacao))+ geom_jitter()+coord_flip() +theme_minimal()
+
+ggplotly(p)
+
+
+```
+
+### remuneração histograma
+
+```{r}
+
+p <- ggplot(servidores %>% filter(data == max(data)), aes(total_rendimentos) )+ geom_histogram() +theme_minimal()
+
+ggplotly(p)
+
+
+```
+
+
 Receitas e Despesas
 =====================================  
 
@@ -283,6 +317,9 @@ ggplotly(p)
 
 
 ```
+
+
+
 
 
 Compras

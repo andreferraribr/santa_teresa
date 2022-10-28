@@ -23,7 +23,7 @@ options(encoding = "latin1")
 
 endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/pagamentos"
 
-call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2007&data_fim=31/01/2007")
+call <- paste0(endpoint, "?page=1&page_size=100&data_inicio=01/01/2022&data_fim=31/01/2022")
 
 
 
@@ -48,7 +48,7 @@ url_api <- c()
 for (x in (1:as.integer(pagamentos_api_json$pagina_total))){
 
     
-  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=01/01/2007&data_fim=31/01/2007")
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&data_inicio=01/01/2022&data_fim=31/01/2022")
   url_api <-  c(url_api,paginas_api)
 }
 
@@ -67,7 +67,7 @@ bind_json2df = function(a){ map(a,json2df)}
 relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
 
 
-pagamentos <- relatorios(url_api)
+pagamentos_teste <- relatorios(url_api)
 
 
 # write.csv(ddd, "pagamentos.csv")
@@ -315,7 +315,7 @@ write.csv(diarias, "diarias.csv")
 ```{r servidores}
 endpoint <- "https://www2.santateresa.es.gov.br/transparencia/api/servidores"
 
-call <- paste0(endpoint, "?page=1&page_size=100&competencia_mes=8&competencia_ano=2022")
+call <- paste0(endpoint, "?page=1&page_size=100&competencia_mes=10&competencia_ano=2022")
 
 
 
@@ -340,7 +340,7 @@ url_api <- c()
 for (x in (1:as.integer(servidores_api_json$pagina_total))){
 
     
-  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&competencia_mes=9&competencia_ano=2022")
+  paginas_api <-   paste0(endpoint, "?page=",x,"&page_size=100&competencia_mes=10&competencia_ano=2022")
   url_api <-  c(url_api,paginas_api)
 }
 
@@ -359,18 +359,42 @@ bind_json2df = function(a){ map(a,json2df)}
 relatorios = function(a){map_dfr(bind_json2df(a), bind_rows)}
 
 
-servidores_2022_09 <- relatorios(url_api)
+servidores_2022_10 <- relatorios(url_api)
 
 
 
 #put all data frames into list
 # df_list <- list(servidores_2022_01,servidores_2022_02,servidores_2022_03,servidores_2022_04,servidores_2022_05,servidores_2022_06,servidores_2022_07,servidores_2022_08)
 
+servidores <- read.csv("servidores.csv") %>% select(-X)
+
+
+ 
+ # servidores_2022_10$competencia_ano <- as.integer(servidores_2022_10$competencia_ano)
+ # 
+ #  servidores_2022_10$competencia_mes <- as.integer(servidores_2022_10$competencia_mes)
+ #  
+ #    servidores_2022_10$matricula <- as.integer(servidores_2022_10$matricula)
+ # 
+ #  servidores_2022_9$competencia_mes <- as.integer(servidores_2022_9$competencia_mes)
+ #  
+ #    servidores_2022_9$matricula <- as.integer(servidores_2022_9$matricula)
+ #    
+ #     servidores_2022_9$salario <- as.double(servidores_2022_9$salario)
+ #     
+ #      servidores_2022_10$salario <- as.double(servidores_2022_10$salario)
+ #  
+ #    servidores$competencia_ano <- as.integer(servidores$competencia_ano)
+ # 
+ #    
+ #     df_list <- list(servidores_2022_10 ,servidores_2022_9,servidores)
 #merge all data frames in list
-servidores <- df_list %>% reduce(full_join) 
+# servidores <- df_list %>% reduce(full_join) 
 
+     servidores <- rbind(servidores, servidores_2022_9)
+     servidores <- rbind(servidores, servidores_2022_10)
 
-# write.csv(servidores, "servidores.csv")
+ write.csv(servidores, "servidores.csv")
 
 ```
 

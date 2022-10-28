@@ -194,15 +194,18 @@ datatable(licitacoes %>% filter(data_abertura >= "2022-10-01" ) %>% group_by(dat
 
 ```{r pagamentos}
 pagamentos <- read_csv("pagamentos.csv")
-datatable(pagamentos %>% filter( funcao !="") %>% group_by(funcao) %>% summarise(valor = sum(valor, na.rm = FALSE)))
+
+
+pagamentos <- pagamentos %>% select(-...1,-id, -numero_pagamento, -numero_liquidacao, -numero_empenho, - processo) 
 
 pagamentos <- pagamentos %>%   mutate(mes_ano =strftime(data  ,'%b-%y') )%>%
   mutate(mes_ano = fct_reorder(mes_ano, data))
 
 pagamentos <- pagamentos %>%   mutate(ano = year(data))
 
+pagamentos <- pagamentos %>%   mutate(mes = month(data))
 
-pagamentos <- pagamentos %>%   mutate(data_ts = ceiling_date(data %m-% months(0), 'month') %m-% days(1))  
+pagamentos <- pagamentos %>%   mutate(data_ts = ceiling_date( parse_date_time(paste0(ano,"-",mes,"-01"),"%y%m%d") %m+% months(1), 'month') %m-% days(1))
 
 pagamentos <- pagamentos %>% separate(grupo, into = c("grupo_cod", "grupo_nome" ), sep = "000000000 - ")
 
@@ -216,48 +219,75 @@ pagamentos <- pagamentos %>% separate(unidade, into = c("unidade_cod", "unidade_
 
 pagamentos <- pagamentos %>% separate(elemento, into = c("elemento_cod", "elemento_nome" ), sep = "00000 - ")
 
-datatable(pagamentos %>% group_by(entidade_nome) %>% summarise(valor = sum(valor, na.rm = FALSE)))
 
 
 
-datatable(pagamentos %>% filter(grupo_cod != c("31"), elemento != "33904700000 - OBRIGAÇÕES TRIBUTARIAS E CONTRIBUTIVAS", favorecido_nome %!in% c("MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","INSTITUTO NACIONAL DO SEGURO SOCIAL", "MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","PREFEITURA MUNICIPAL DE SANTA TERESA","CAIXA ECONOMICA FEDERAL","SECRETARIA DE ESTADO DA AGRICULTURA, ABASTECIMENTO E PESCA - SEAG","PAGAMENTO DE SERVIDORES FMS SANTA TERESA" ,"PAGAMENTO DE SERVIDORES FMS SANTA TERESA","TESOURO NACIONAL")) %>% group_by(favorecido_nome) %>% summarise(valor = sum(valor, na.rm = TRUE)))%>% formatCurrency("valor",
-  currency = "",
-  interval = 3,
-  mark = ".",
-  digits = 0,
-  dec.mark = ",",
-  before = TRUE,
-  zero.print = NULL,
-  rows = NULL)%>% 
-     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+
+# datatable(pagamentos %>% filter(grupo_cod != c("31"), elemento != "33904700000 - OBRIGAÇÕES TRIBUTARIAS E CONTRIBUTIVAS", favorecido_nome %!in% c("MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","INSTITUTO NACIONAL DO SEGURO SOCIAL", "MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","PREFEITURA MUNICIPAL DE SANTA TERESA","CAIXA ECONOMICA FEDERAL","SECRETARIA DE ESTADO DA AGRICULTURA, ABASTECIMENTO E PESCA - SEAG","PAGAMENTO DE SERVIDORES FMS SANTA TERESA" ,"PAGAMENTO DE SERVIDORES FMS SANTA TERESA","TESOURO NACIONAL")) %>% group_by(favorecido_nome) %>% summarise(valor = sum(valor, na.rm = TRUE)))%>% formatCurrency("valor",
+#   currency = "",
+#   interval = 3,
+#   mark = ".",
+#   digits = 0,
+#   dec.mark = ",",
+#   before = TRUE,
+#   zero.print = NULL,
+#   rows = NULL)%>% 
+#      formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+# 
+# 
+# datatable(pagamentos %>% filter(grupo_cod != c("31"), elemento_cod != "339047", favorecido_nome %!in% c("MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","INSTITUTO NACIONAL DO SEGURO SOCIAL", "MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","PREFEITURA MUNICIPAL DE SANTA TERESA","CAIXA ECONOMICA FEDERAL","SECRETARIA DE ESTADO DA AGRICULTURA, ABASTECIMENTO E PESCA - SEAG","PAGAMENTO DE SERVIDORES FMS SANTA TERESA" ,"PAGAMENTO DE SERVIDORES FMS SANTA TERESA","TESOURO NACIONAL")) %>% group_by( subfuncao_nome, elemento_nome, favorecido_nome) %>% summarise(valor = sum(valor, na.rm = TRUE)))%>% formatCurrency("valor",
+#   currency = "",
+#   interval = 3,
+#   mark = ".",
+#   digits = 0,
+#   dec.mark = ",",
+#   before = TRUE,
+#   zero.print = NULL,
+#   rows = NULL)%>% 
+#      formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 
 
-datatable(pagamentos %>% filter(grupo_cod != c("31"), elemento_cod != "339047", favorecido_nome %!in% c("MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","INSTITUTO NACIONAL DO SEGURO SOCIAL", "MINISTÉRIO DA FAZENDA - SECRETARIA DA RECEITA FEDERAL","PREFEITURA MUNICIPAL DE SANTA TERESA","CAIXA ECONOMICA FEDERAL","SECRETARIA DE ESTADO DA AGRICULTURA, ABASTECIMENTO E PESCA - SEAG","PAGAMENTO DE SERVIDORES FMS SANTA TERESA" ,"PAGAMENTO DE SERVIDORES FMS SANTA TERESA","TESOURO NACIONAL")) %>% group_by( subfuncao_nome, elemento_nome, favorecido_nome) %>% summarise(valor = sum(valor, na.rm = TRUE)))%>% formatCurrency("valor",
-  currency = "",
-  interval = 3,
-  mark = ".",
-  digits = 0,
-  dec.mark = ",",
-  before = TRUE,
-  zero.print = NULL,
-  rows = NULL)%>% 
-     formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
+# grupos <- full_join(pagamentos %>% filter(grupo_cod == "44") %>% group_by(data_ts) %>% summarise(investimento = sum(valor)/1000000),pagamentos %>% filter(grupo_cod != "44") %>% group_by(data_ts) %>% summarise(demais = sum(valor)/1000000), by = "data_ts")
+# library(xts)
+# 
+# grupos <- grupos %>%  mutate(investimento_acumulado = round(roll_sum(investimento,12, fill=NA, align="right"),1),demais_acumulado = round(roll_sum(demais,12, fill=NA, align="right"),1))
+# 
+# 
+# grupos_ts <- xts(grupos %>% select(investimento_acumulado,demais_acumulado), grupos$data_ts)
 
 
-grupos <- full_join(pagamentos %>% filter(grupo_cod == "44") %>% group_by(data_ts) %>% summarise(investimento = sum(valor)/1000000),pagamentos %>% filter(grupo_cod != "44") %>% group_by(data_ts) %>% summarise(demais = sum(valor)/1000000), by = "data_ts")
+
+
+
+
+pagamento_clean <- pagamentos %>% select( funcao_nome, grupo_cod, grupo_nome, elemento_cod, subfuncao_nome, elemento_nome, favorecido_nome, mes_ano,  data_ts ,ano, valor)
+
+# pagamentos_clean <- pagamentos_clean %>%   mutate(data_ts = ceiling_date( parse_date_time(paste0(ano,"-",mes,"-01"),"%y%m%d") %m+% months(1), 'month') %m-% days(1)) 
+
+
+
+ library(openxlsx)
+# write.xlsx  (pagamento_clean ,"pagamentos_clean.xlsx")
+# 
+# write_csv(pagamento_clean,"pagamentos_clean.csv")
+
+
+grupos <- do.call(cbind, list(pagamentos %>% filter(grupo_cod == "44") %>% group_by(data_ts) %>% summarise(investimento = sum(valor)/1000000),pagamentos %>% filter(grupo_cod == "33") %>% group_by(data_ts) %>% summarise(despesas_correntes = sum(valor)/1000000) %>% select(despesas_correntes), pagamentos %>% filter(grupo_cod == "31") %>% group_by(data_ts) %>% summarise(pessoal = sum(valor)/1000000)%>% select(pessoal)))
+
+
+
 library(xts)
 
-grupos <- grupos %>%  mutate(investimento_acumulado = round(roll_sum(investimento,12, fill=NA, align="right"),1),demais_acumulado = round(roll_sum(demais,12, fill=NA, align="right"),1))
+# grupos <- grupos %>% select(1,2,4,6)
+
+grupos <- grupos %>%  mutate(despesas_correntes = round(roll_sum(despesas_correntes,12, fill=NA,align="right"),1),
+                             pessoal = round(roll_sum(pessoal,12, fill=NA, align="right"),1),
+                             investimento = round(roll_sum(investimento,12, fill=NA, align="right"),1)
+                             )
 
 
-grupos_ts <- xts(grupos %>% select(investimento_acumulado,demais_acumulado), grupos$data_ts)
+grupos_ts <- xts(grupos %>% select(investimento,pessoal,despesas_correntes), grupos$data_ts)
 
-
-pagamento_clean <- pagamentos %>% select(data, funcao_nome, grupo_cod, grupo_nome, elemento_cod, subfuncao_nome, elemento_nome, favorecido_nome, mes_ano,  data_ts ,ano, valor)
- library(openxlsx)
-write.xlsx  (pagamento_clean ,"pagamentos_clean.xlsx")
-
-write_csv(pagamento_clean,"pagamentos_clean.csv")
 ```
 
 ```{r}
