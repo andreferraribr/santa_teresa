@@ -68,6 +68,11 @@ servidores <- servidores %>% mutate(formacao = case_when(
   
 ))
 
+servidores <- servidores %>% separate(jornada, into = c("jornada_horas","Jornada_minutos"),":")
+
+servidores$jornada_horas <- as.integer(servidores$jornada_horas)
+
+servidores <- servidores %>% mutate(remuneracao_por_hora = round( total_rendimentos/jornada_horas,1))
 
 mes_vigente <- levels(servidores$mes_ano)[as.numeric(max(servidores$competencia_mes))]
 
@@ -312,6 +317,19 @@ renderValueBox( valueBox(reais(total_rendimentos/f_trabalho), caption = paste0("
 
 ```
 
+
+
+### Valor médio da hora trabalhada
+
+```{r}
+
+total_horas <- sum(servidores %>% filter(data == max(data)) %>% select(jornada_horas))
+
+renderValueBox( valueBox(reais(total_rendimentos/total_horas), caption = paste0("Valor médio da hora trabalhada em ", mes_vigente)))
+
+
+```
+
 Column {.tabset}
 -----------------------------------------------------------------------
 
@@ -320,6 +338,18 @@ Column {.tabset}
 ```{r}
 
 p <- ggplot(servidores %>% filter(data == max(data)), aes( y = total_rendimentos, x = regime, color = formacao))+ geom_jitter()+coord_flip() +theme_minimal()
+
+ggplotly(p)
+
+
+```
+
+
+### remuneração/hora por regime
+
+```{r}
+
+p <- ggplot(servidores %>% filter(data == max(data)), aes( y = remuneracao_por_hora , x = regime, color = formacao))+ geom_jitter()+coord_flip() +theme_minimal()
 
 ggplotly(p)
 
@@ -336,6 +366,24 @@ ggplotly(p)
 
 
 ```
+### evolucao força de trabalho
+```{r}
+
+saldo_trabalho <- servidores %>% filter(data %in% c(max(data), add_with_rollback(max(data), months(-1))))%>% group_by(regime,cargo,mes_ano) %>% count() %>% pivot_wider(names_from = "mes_ano", values_from = n) 
+
+saldo_trabalho[is.na(saldo_trabalho)] <- 0
+
+colnames(saldo_trabalho)[3] <- "anterior"
+colnames(saldo_trabalho)[4] <- "atual"
+
+saldo_trabalho <- saldo_trabalho %>% mutate(saldo = atual-anterior) 
+
+datatable(saldo_trabalho%>% filter(saldo != 0) %>% arrange(desc(saldo))  )
+
+
+
+```
+
 
 
 Receitas e Despesas
@@ -379,7 +427,7 @@ ggplotly(p)
 Compras
 ===================================== 
 
-Column
+Row
 -----------------------------------------------------------------------
 ### Licitações publicadas nos últimos 60 dias 
 
@@ -398,8 +446,7 @@ datatable(licitacoes %>% filter(data_publicacao >= as.Date(today()-60) ) %>% gro
 ```
 
 
-Column
------------------------------------------------------------------------
+
 ### Atas de registro de preço
 
 ```{r tabela_atas}
@@ -407,8 +454,7 @@ datatable(atas %>% select(objeto, fornecedor))%>%
      formatStyle(columns = colnames(.$x$data), fontSize = "10pt")
 ```
 
-Column
------------------------------------------------------------------------
+
 
 ### Contratos vigentes
 
